@@ -1,5 +1,8 @@
 package application
 
+import akka.actor.typed.Behavior
+import akka.persistence.typed.PersistenceId
+import akka.persistence.typed.scaladsl.EventSourcedBehavior
 import akka.persistence.typed.scaladsl.ReplyEffect
 
 object UserEntity {
@@ -50,4 +53,12 @@ object UserEntity {
 
     override def applyEvent(event: Event): State = ???
   }
+
+  def apply(persistenceId: PersistenceId,
+            entityId: String): Behavior[Command] = EventSourcedBehavior[Command, Event, State](
+    persistenceId = persistenceId,
+    emptyState = EmptyState(entityId),
+    eventHandler = (state, event) => state.applyEvent(event),
+    commandHandler = (state, command) => state.applyCommand(command)
+  )
 }
