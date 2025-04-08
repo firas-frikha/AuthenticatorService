@@ -50,6 +50,4 @@ object UserEntity {
 
     override def applyEvent(event: Event): State = ???
   }
-
-
 }
