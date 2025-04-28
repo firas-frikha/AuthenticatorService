@@ -17,7 +17,25 @@ object UserEntity {
 
   sealed trait Command
 
-  sealed trait Event
+  case class RegisterUserCommand(firstName: String,
+                                 lastName: String,
+                                 userId: String,
+                                 password: String) extends Command
+
+  sealed trait Event {
+    def id: String
+  }
+
+  case class RegisteredUserEvent(id: String,
+                                 firstName: String,
+                                 lastName: String,
+                                 userId: String,
+                                 password: String) extends Event
+
+
+  sealed trait Result
+
+  sealed trait RegisterResult extends Result
 
   case class EmptyState(override val id: String) extends State {
 
