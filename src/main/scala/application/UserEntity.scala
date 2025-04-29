@@ -4,6 +4,9 @@ import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 
+import java.time.LocalDateTime
+import java.util.UUID
+
 object UserEntity {
 
   sealed trait State {
@@ -19,8 +22,12 @@ object UserEntity {
   case class RegisterUserCommand(firstName: String,
                                  lastName: String,
                                  userId: String,
+                                 email: String,
                                  password: String)
                                 (val replyTo: ActorRef[RegisterCommandResult]) extends Command
+
+
+  case class VerifyUserCommand(verificationToken: UUID) extends Command
 
   sealed trait Event {
     def id: String
@@ -30,7 +37,11 @@ object UserEntity {
                                  firstName: String,
                                  lastName: String,
                                  userId: String,
-                                 password: String) extends Event
+                                 email: String,
+                                 password: String,
+                                 createdAt: LocalDateTime,
+                                 verificationToken: UUID,
+                                 tokenExpirationDate: LocalDateTime) extends Event
 
 
   sealed trait Result
@@ -53,8 +64,11 @@ object UserEntity {
               firstName = registerCommand.firstName,
               lastName = registerCommand.lastName,
               userId = registerCommand.userId,
-              password = registerCommand.password
-            ))
+              password = registerCommand.password,
+              email = registerCommand.email,
+              createdAt = LocalDateTime.now(),
+              verificationToken = UUID.randomUUID(),
+              tokenExpirationDate = LocalDateTime.now().minusDays(1)))
             .thenReply(registerCommand.replyTo)(_ => SuccessfulRegisterCommandUserCommand)
       }
 
@@ -66,7 +80,11 @@ object UserEntity {
             firstName = registeredUserEvent.firstName,
             lastName = registeredUserEvent.lastName,
             userId = registeredUserEvent.userId,
-            password = registeredUserEvent.password)
+            passwordHash = registeredUserEvent.password,
+            email = registeredUserEvent.email,
+            verificationToken = registeredUserEvent.verificationToken,
+            tokenExpirationDate = registeredUserEvent.tokenExpirationDate,
+            createdAt = registeredUserEvent.createdAt)
       }
   }
 
@@ -74,7 +92,11 @@ object UserEntity {
                                       firstName: String,
                                       lastName: String,
                                       userId: String,
-                                      password: String) extends State {
+                                      email: String,
+                                      createdAt: LocalDateTime,
+                                      verificationToken: UUID,
+                                      tokenExpirationDate: LocalDateTime,
+                                      passwordHash: String) extends State {
 
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
       command match {
