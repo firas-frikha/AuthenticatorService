@@ -6,10 +6,11 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import akka.serialization.jackson.CborSerializable
 
 import java.time.LocalDateTime
-import java.util.UUID
 import scala.util.Random
 
 object UserEntity {
+
+  val MaximumNumberOfLoginAttempts: Int = 3
 
   sealed trait State extends CborSerializable {
     def id: String
@@ -32,6 +33,9 @@ object UserEntity {
   case class VerifyUserCommand(verificationToken: String)
                               (val replyTo: ActorRef[VerifyUserCommandResult]) extends Command
 
+  case class LoginUserCommand(passwordHash: String)
+                             (val replyTo: ActorRef[LoginResult]) extends Command
+
   sealed trait Event extends CborSerializable {
     def id: String
   }
@@ -44,11 +48,17 @@ object UserEntity {
                                  password: String,
                                  createdAt: LocalDateTime,
                                  verificationToken: String,
-                                 tokenExpirationDate: LocalDateTime) extends Event
+                                 tokenExpirationDate: LocalDateTime,
+                                 loginAttempts: Int) extends Event
 
   case class UserVerifiedEvent(id: String,
                                verifiedAt: LocalDateTime) extends Event
 
+  case class UserLoggedInEvent(id: String,
+                               loggedInAt: LocalDateTime) extends Event
+
+
+  case class UserLoginFailureEvent(id: String, loginAt: LocalDateTime) extends Event
 
   sealed trait Result extends CborSerializable
 
@@ -66,6 +76,14 @@ object UserEntity {
 
   case object WrongOrExpiredVerificationToken extends VerifyUserCommandResult
 
+  trait LoginResult extends Result
+
+  case object SuccessfulLogin extends LoginResult
+
+  case class UnsupportedLoginCommand(reason: String) extends LoginResult
+
+  case object FailedLoginResult extends LoginResult
+
   case class EmptyState(override val id: String) extends State {
 
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
@@ -81,12 +99,16 @@ object UserEntity {
               email = registerUserCommand.email,
               createdAt = LocalDateTime.now(),
               verificationToken = Random.alphanumeric.take(24).mkString,
-              tokenExpirationDate = LocalDateTime.now().plusDays(1)))
+              tokenExpirationDate = LocalDateTime.now().plusDays(1),
+              loginAttempts = 0))
             .thenReply(registerUserCommand.replyTo)(_ => SuccessfulRegisterUserCommand)
 
         case verifyUserCommand: VerifyUserCommand =>
           Effect
             .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand("Cannot verify User, user is not created yet !"))
+        case loginUserCommand: LoginUserCommand =>
+          Effect
+            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${loginUserCommand.getClass.getName}, user is not created yet !"))
       }
 
     override def applyEvent(event: Event): State =
@@ -104,6 +126,8 @@ object UserEntity {
             createdAt = registeredUserEvent.createdAt)
         case userVerifiedEvent: UserVerifiedEvent =>
           throw new IllegalStateException(s"Unexpected event ${userVerifiedEvent.getClass.getName} in ${this.getClass.getName} state")
+        case userLoggedInEvent: UserLoggedInEvent =>
+          throw new IllegalStateException(s"Unexpected event ${userLoggedInEvent.getClass.getName} in ${this.getClass.getName} state")
       }
   }
 
@@ -129,6 +153,9 @@ object UserEntity {
           else
             Effect
               .reply(verifyUserCommand.replyTo)(WrongOrExpiredVerificationToken)
+        case loginUserCommand: LoginUserCommand =>
+          Effect
+            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${loginUserCommand.getClass.getName}, user is pending verification state !"))
       }
 
     override def applyEvent(event: Event): State =
@@ -142,10 +169,12 @@ object UserEntity {
             email = email,
             createdAt = createdAt,
             passwordHash = passwordHash,
-            verifiedAt = userVerifiedEvent.verifiedAt
-          )
+            verifiedAt = userVerifiedEvent.verifiedAt,
+            loginAttempts = 0)
         case registeredUserEvent: RegisteredUserEvent =>
           throw new IllegalStateException(s"Unexpected event ${registeredUserEvent.getClass.getName} in ${this.getClass.getName} state")
+        case userLoggedInEvent: UserLoggedInEvent =>
+          throw new IllegalStateException(s"Unexpected event ${userLoggedInEvent.getClass.getName} in ${this.getClass.getName} state")
       }
   }
 
@@ -156,7 +185,8 @@ object UserEntity {
                                  email: String,
                                  createdAt: LocalDateTime,
                                  passwordHash: String,
-                                 verifiedAt: LocalDateTime) extends State {
+                                 verifiedAt: LocalDateTime,
+                                 loginAttempts: Int) extends State {
 
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
       command match {
@@ -166,6 +196,16 @@ object UserEntity {
         case verifyUserCommand: VerifyUserCommand =>
           Effect
             .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand("Unable to register user, user already verified"))
+        case loginUserCommand: LoginUserCommand =>
+          if (loginUserCommand.passwordHash == passwordHash)
+            Effect
+              .persist(UserLoggedInEvent(id = id, loggedInAt = LocalDateTime.now()))
+              .thenReply(loginUserCommand.replyTo)(_ => SuccessfulLogin)
+          else {
+            Effect
+              .persist(UserLoginFailureEvent(id = id, loginAt = LocalDateTime.now()))
+              .thenReply(loginUserCommand.replyTo)(_ => FailedLoginResult)
+          }
       }
 
     override def applyEvent(event: Event): State =
@@ -174,10 +214,35 @@ object UserEntity {
           throw new IllegalStateException(s"Unexpected event ${registeredUserEvent.getClass.getName} in ${this.getClass.getName} state")
         case userVerifiedEvent: UserVerifiedEvent =>
           throw new IllegalStateException(s"Unexpected event ${userVerifiedEvent.getClass.getName} in ${this.getClass.getName} state")
+        case UserLoginFailureEvent: UserLoginFailureEvent =>
+          val totalNumberOfLoginAttempts = loginAttempts + 1
+          if (totalNumberOfLoginAttempts > MaximumNumberOfLoginAttempts) {
+            LockedUserState(id = id,
+              firstName = firstName,
+              lastName = lastName,
+              userId = userId,
+              email = email,
+              createdAt = createdAt,
+              passwordHash = passwordHash,
+              verifiedAt = verifiedAt,
+              lockedAt = UserLoginFailureEvent.loginAt)
+          } else {
+            copy(loginAttempts = loginAttempts + 1)
+          }
+        case UserLoggedInEvent: UserLoggedInEvent =>
+          copy(loginAttempts = 0)
       }
   }
 
-  case class LockedState(override val id: String) extends State {
+  case class LockedUserState(override val id: String,
+                             firstName: String,
+                             lastName: String,
+                             userId: String,
+                             email: String,
+                             createdAt: LocalDateTime,
+                             passwordHash: String,
+                             verifiedAt: LocalDateTime,
+                             lockedAt: LocalDateTime) extends State {
 
     override def applyCommand(command: Command): ReplyEffect[Event, State] = ???
 
