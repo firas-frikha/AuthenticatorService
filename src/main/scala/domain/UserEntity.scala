@@ -1,15 +1,16 @@
-package application
+package domain
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
+import akka.serialization.jackson.CborSerializable
 
 import java.time.LocalDateTime
 import java.util.UUID
 
 object UserEntity {
 
-  sealed trait State {
+  sealed trait State extends CborSerializable {
     def id: String
 
     def applyCommand(command: Command): ReplyEffect[Event, State]
@@ -17,7 +18,7 @@ object UserEntity {
     def applyEvent(event: Event): State
   }
 
-  sealed trait Command
+  sealed trait Command extends CborSerializable
 
   case class RegisterUserCommand(firstName: String,
                                  lastName: String,
@@ -29,7 +30,7 @@ object UserEntity {
 
   case class VerifyUserCommand(verificationToken: UUID) extends Command
 
-  sealed trait Event {
+  sealed trait Event extends CborSerializable {
     def id: String
   }
 
@@ -44,7 +45,7 @@ object UserEntity {
                                  tokenExpirationDate: LocalDateTime) extends Event
 
 
-  sealed trait Result
+  sealed trait Result extends CborSerializable
 
   sealed trait RegisterCommandResult extends Result
 
