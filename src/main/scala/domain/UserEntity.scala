@@ -120,7 +120,7 @@ object UserEntity {
         case registerUserCommand: RegisterUserCommand =>
           Effect
             .persist(RegisteredUserEvent(
-              id = registerUserCommand.userId,
+              id = id,
               firstName = registerUserCommand.firstName,
               lastName = registerUserCommand.lastName,
               userId = registerUserCommand.userId,
@@ -134,16 +134,16 @@ object UserEntity {
 
         case verifyUserCommand: VerifyUserCommand =>
           Effect
-            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand("Cannot verify User, user is not created yet !"))
+            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${VerifyUserCommand.getClass.getSimpleName}, user in ${EmptyState.getClass.getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
           Effect
-            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${loginUserCommand.getClass.getName}, user is not created yet !"))
+            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${LoginUserCommand.getClass.getSimpleName}, user in ${EmptyState.getClass.getSimpleName} !"))
         case unlockUserCommand: UnlockUserCommand =>
           Effect
-            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${unlockUserCommand.getClass.getName}, user is not created yet !"))
+            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${UnlockUserCommand.getClass.getSimpleName}, user in ${EmptyState.getClass.getSimpleName} !"))
         case deleteUserCommand: DeleteUserCommand =>
           Effect
-            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${deleteUserCommand.getClass.getName}, user is not created yet !"))
+            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${DeleteUserCommand.getClass.getSimpleName}, user in ${EmptyState.getClass.getSimpleName} !"))
       }
 
     override def applyEvent(event: Event): State =
@@ -187,7 +187,7 @@ object UserEntity {
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
-          Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand("Unable to register user, user in pending verification state"))
+          Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${RegisterUserCommand.getClass.getSimpleName}, user in ${PendingVerificationState.getClass.getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
           if (verifyUserCommand.verificationToken == verificationToken && LocalDateTime.now().isBefore(tokenExpirationDate))
             Effect
@@ -198,13 +198,13 @@ object UserEntity {
               .reply(verifyUserCommand.replyTo)(WrongOrExpiredVerificationToken)
         case loginUserCommand: LoginUserCommand =>
           Effect
-            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${loginUserCommand.getClass.getName}, user is pending verification state !"))
+            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${LoginUserCommand.getClass.getSimpleName}, user in ${PendingVerificationState.getClass.getSimpleName} !"))
         case unlockUserCommand: UnlockUserCommand =>
           Effect
-            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${unlockUserCommand.getClass.getName}, user is pending verification state !"))
+            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${UnlockUserCommand.getClass.getSimpleName}, user in ${PendingVerificationState.getClass.getSimpleName} !"))
         case deleteUserCommand: DeleteUserCommand =>
           Effect
-            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${deleteUserCommand.getClass.getName}, user is not created yet !"))
+            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${DeleteUserCommand.getClass.getSimpleName}, user in ${PendingVerificationState.getClass.getSimpleName} !"))
       }
 
     override def applyEvent(event: Event): State =
@@ -249,10 +249,10 @@ object UserEntity {
       command match {
         case registerUserCommand: RegisterUserCommand =>
           Effect
-            .reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand("Unable to register user, user already registered"))
+            .reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${RegisterUserCommand.getClass.getSimpleName}, user in ${RegisteredUserState.getClass.getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
           Effect
-            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand("Unable to register user, user already verified"))
+            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${RegisterUserCommand.getClass.getSimpleName}, user in ${RegisteredUserState.getClass.getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
           if (loginUserCommand.passwordHash == passwordHash)
             Effect
@@ -270,7 +270,7 @@ object UserEntity {
           }
         case unlockUserCommand: UnlockUserCommand =>
           Effect
-            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${unlockUserCommand.getClass.getName}, user is not locked !"))
+            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${UnlockUserCommand.getClass.getSimpleName}, user in ${RegisteredUserState.getClass.getSimpleName} !"))
         case deleteUserCommand: DeleteUserCommand =>
           Effect
             .persist(UserDeletedEvent(id = id, deletedAt = LocalDateTime.now()))
@@ -329,18 +329,18 @@ object UserEntity {
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
-          Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand("Cannot register user, user already registered"))
+          Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${RegisterUserCommand.getClass.getSimpleName}, user in ${LockedUserState.getClass.getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
-          Effect.reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand("Cannot verify user, user already verified"))
+          Effect.reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${VerifyUserCommand.getClass.getSimpleName}, user in ${LockedUserState.getClass.getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
-          Effect.reply(loginUserCommand.replyTo)(UnsupportedLoginCommand("Cannot login user, user account is locked"))
+          Effect.reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${LoginUserCommand.getClass.getSimpleName}, user in ${LockedUserState.getClass.getSimpleName} !"))
         case unlockUserCommand: UnlockUserCommand =>
           Effect
             .persist(UserUnlockedEvent(id, unlockUserCommand.newPasswordHash))
             .thenReply(unlockUserCommand.replyTo)(_ => SuccessfulUnlockCommand)
         case deleteUserCommand: DeleteUserCommand =>
           Effect
-            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${deleteUserCommand.getClass.getName}, user account is locked !"))
+            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${DeleteUserCommand.getClass.getSimpleName}, user in ${LockedUserState.getClass.getSimpleName} !"))
       }
 
     override def applyEvent(event: Event): State =
@@ -386,19 +386,19 @@ object UserEntity {
       command match {
         case registerUserCommand: RegisterUserCommand =>
           Effect
-            .reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${registerUserCommand.getClass.getName}, user is in deleted state"))
+            .reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${UserEntity.RegisterUserCommand.getClass.getSimpleName}, user in ${UserEntity.DeletedState.getClass.getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
           Effect
-            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${verifyUserCommand.getClass.getName}, user is in deleted state"))
+            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${UserEntity.VerifyUserCommand.getClass.getSimpleName}, user in ${UserEntity.DeletedState.getClass.getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
           Effect
-            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${loginUserCommand.getClass.getName}, user is in deleted state"))
+            .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${UserEntity.LoginUserCommand.getClass.getSimpleName}, user in ${UserEntity.DeletedState.getClass.getSimpleName} !"))
         case unlockUserCommand: UnlockUserCommand =>
           Effect
-            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${unlockUserCommand.getClass.getName}, user is in deleted state"))
+            .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${UserEntity.UnlockUserCommand.getClass.getSimpleName}, user in ${UserEntity.DeletedState.getClass.getSimpleName} !"))
         case deleteUserCommand: DeleteUserCommand =>
           Effect
-            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${deleteUserCommand.getClass.getName}, user is in deleted state"))
+            .reply(deleteUserCommand.replyTo)(UnsupportedDeleteCommand(s"Cannot execute ${UserEntity.DeleteUserCommand.getClass.getSimpleName}, user in ${UserEntity.DeletedState.getClass.getSimpleName} !"))
       }
 
     override def applyEvent(event: Event): State =
