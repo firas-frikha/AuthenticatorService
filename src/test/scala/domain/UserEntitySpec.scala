@@ -42,7 +42,7 @@ class UserEntitySpec
             lastName = lastName,
             userId = userId,
             email = email,
-            password = passwordHash)
+            passwordHash = passwordHash)
           )
 
           result.reply shouldBe UserEntity.SuccessfulRegisterUserCommand
@@ -53,7 +53,7 @@ class UserEntitySpec
           result.eventOfType[UserEntity.RegisteredUserEvent].firstName shouldBe firstName
           result.eventOfType[UserEntity.RegisteredUserEvent].userId shouldBe userId
           result.eventOfType[UserEntity.RegisteredUserEvent].email shouldBe email
-          result.eventOfType[UserEntity.RegisteredUserEvent].password shouldBe passwordHash
+          result.eventOfType[UserEntity.RegisteredUserEvent].passwordHash shouldBe passwordHash
 
           result.stateOfType[UserEntity.PendingVerificationState].userId shouldBe userId
           result.stateOfType[UserEntity.PendingVerificationState].firstName shouldBe firstName
@@ -112,7 +112,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.RegisterUserCommand(
@@ -120,7 +120,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
           result2.reply shouldBe UserEntity.UnsupportedRegisterUserCommand(s"Cannot execute ${UserEntity.RegisterUserCommand.getClass.getSimpleName}, user in ${UserEntity.PendingVerificationState.getClass.getSimpleName} !")
 
@@ -135,7 +135,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -152,7 +152,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
 
@@ -170,7 +170,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.LoginResult](UserEntity.LoginUserCommand(passwordHash = Random.alphanumeric.take(12).mkString)
@@ -187,7 +187,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.UnlockUserCommand(newPasswordHash = Random.alphanumeric.take(12).mkString)
@@ -204,7 +204,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.DeleteUserCommand())
@@ -225,7 +225,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -237,7 +237,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
           result3.reply shouldBe UserEntity.UnsupportedRegisterUserCommand(s"Cannot execute ${UserEntity.RegisterUserCommand.getClass.getSimpleName}, user in ${UserEntity.RegisteredUserState.getClass.getSimpleName} !")
 
@@ -252,7 +252,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -277,11 +277,11 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
-          val password = result1.eventOfType[UserEntity.RegisteredUserEvent].password
+          val password = result1.eventOfType[UserEntity.RegisteredUserEvent].passwordHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -298,7 +298,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -318,7 +318,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -352,7 +352,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -374,7 +374,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
 
@@ -398,7 +398,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -415,7 +415,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           result7.reply shouldBe UserEntity.UnsupportedRegisterUserCommand(s"Cannot execute ${UserEntity.RegisterUserCommand.getClass.getSimpleName}, user in ${UserEntity.LockedUserState.getClass.getSimpleName} !")
@@ -431,7 +431,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -458,7 +458,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -485,7 +485,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -514,7 +514,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -545,7 +545,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -559,7 +559,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
           result4.reply shouldBe UserEntity.UnsupportedRegisterUserCommand(s"Cannot execute ${UserEntity.RegisterUserCommand.getClass.getSimpleName}, user in ${UserEntity.DeletedState.getClass.getSimpleName} !")
 
@@ -575,7 +575,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -600,7 +600,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -625,7 +625,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
@@ -650,7 +650,7 @@ class UserEntitySpec
             lastName = Random.alphanumeric.take(12).mkString,
             userId = Random.alphanumeric.take(12).mkString,
             email = Random.alphanumeric.take(12).mkString,
-            password = Random.alphanumeric.take(12).mkString)
+            passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
           val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
