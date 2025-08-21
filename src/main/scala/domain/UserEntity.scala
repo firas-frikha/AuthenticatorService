@@ -10,7 +10,7 @@ import scala.util.Random
 
 object UserEntity {
 
-  val MaximumNumberOfLoginAttempts: Int = 3
+  private val MaximumNumberOfLoginAttempts: Int = 3
 
   sealed trait State extends CborSerializable {
     def id: String
@@ -283,9 +283,9 @@ object UserEntity {
           throw new IllegalStateException(s"Unexpected event ${registeredUserEvent.getClass.getName} in ${this.getClass.getName} state")
         case userVerifiedEvent: UserVerifiedEvent =>
           throw new IllegalStateException(s"Unexpected event ${userVerifiedEvent.getClass.getName} in ${this.getClass.getName} state")
-        case userLoginFailureEvent: UserLoginFailureEvent =>
+        case _: UserLoginFailureEvent =>
           copy(loginAttempts = loginAttempts + 1)
-        case userLoggedInEvent: UserLoggedInEvent =>
+        case _: UserLoggedInEvent =>
           copy(loginAttempts = 0)
         case userUnlockedEvent: UserUnlockedEvent =>
           throw new IllegalStateException(s"Unexpected event ${userUnlockedEvent.getClass.getName} in ${this.getClass.getName} state")
