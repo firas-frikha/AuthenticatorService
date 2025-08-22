@@ -5,7 +5,7 @@ import akka.persistence.typed.PersistenceId
 import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffect}
 import akka.serialization.jackson.CborSerializable
 
-import java.time.{Clock, LocalDateTime}
+import java.time.{Clock, LocalDateTime, ZoneOffset}
 import java.security.SecureRandom
 
 object UserEntity {
@@ -118,6 +118,7 @@ object UserEntity {
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
+          val timeNow = nowUtc
           Effect
             .persist(RegisteredUserEvent(
               id = id,
@@ -126,8 +127,8 @@ object UserEntity {
               userId = registerUserCommand.userId,
               passwordHash = registerUserCommand.passwordHash,
               email = registerUserCommand.email,
-              createdAt = LocalDateTime.from(clock.instant()),
-              tokenExpirationDate = LocalDateTime.from(clock.instant()).plusDays(1),
+              createdAt = timeNow,
+              tokenExpirationDate = timeNow.plusDays(1),
               verificationToken = SecureRandom.getInstanceStrong.toString,
               loginAttempts = 0))
             .thenReply(registerUserCommand.replyTo)(_ => SuccessfulRegisterUserCommand)
@@ -190,9 +191,10 @@ object UserEntity {
         case registerUserCommand: RegisterUserCommand =>
           Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[PendingVerificationState].getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
-          if (verifyUserCommand.verificationToken == verificationToken && LocalDateTime.from(clock.instant()).isBefore(tokenExpirationDate))
+          val timeNow = nowUtc
+          if (verifyUserCommand.verificationToken == verificationToken && timeNow.isBefore(tokenExpirationDate))
             Effect
-              .persist(UserVerifiedEvent(id, LocalDateTime.from(clock.instant())))
+              .persist(UserVerifiedEvent(id, timeNow))
               .thenReply(verifyUserCommand.replyTo)(_ => SuccessfulVerifyUserCommand)
           else
             Effect
@@ -256,26 +258,28 @@ object UserEntity {
           Effect
             .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[RegisteredUserState].getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
+          val timeNow = nowUtc
           if (loginUserCommand.passwordHash == passwordHash)
             Effect
-              .persist(UserLoggedInEvent(id = id, loggedInAt = LocalDateTime.from(clock.instant())))
+              .persist(UserLoggedInEvent(id = id, loggedInAt = timeNow))
               .thenReply(loginUserCommand.replyTo)(_ => SuccessfulLogin)
           else {
             if (loginAttempts + 1 >= MaximumNumberOfLoginAttempts)
               Effect
-                .persist(UserLockedEvent(id = id, lockedAt = LocalDateTime.from(clock.instant())))
+                .persist(UserLockedEvent(id = id, lockedAt = timeNow))
                 .thenReply(loginUserCommand.replyTo)(_ => UserLocked)
             else
               Effect
-                .persist(UserLoginFailureEvent(id = id, loginAt = LocalDateTime.from(clock.instant())))
+                .persist(UserLoginFailureEvent(id = id, loginAt = timeNow))
                 .thenReply(loginUserCommand.replyTo)(_ => FailedLoginResult)
           }
         case unlockUserCommand: UnlockUserCommand =>
           Effect
             .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${classOf[UnlockUserCommand].getSimpleName}, user in ${classOf[RegisteredUserState].getSimpleName} !"))
         case deleteUserCommand: DeleteUserCommand =>
+          val timeNow = nowUtc
           Effect
-            .persist(UserDeletedEvent(id = id, deletedAt = LocalDateTime.from(clock.instant())))
+            .persist(UserDeletedEvent(id = id, deletedAt = timeNow))
             .thenReply(deleteUserCommand.replyTo)(_ => SuccessfulDeleteCommand)
       }
 
@@ -418,4 +422,8 @@ object UserEntity {
     eventHandler = (state, event) => state.applyEvent(event),
     commandHandler = (state, command) => state.applyCommand(command)
   )
+
+
+  private def nowUtc(implicit clock: Clock): LocalDateTime =
+    LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)
 }
