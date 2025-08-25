@@ -138,7 +138,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(
             verificationToken))
@@ -228,7 +228,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -255,7 +255,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(
             verificationToken))
@@ -280,7 +280,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
           val password = result1.eventOfType[UserEntity.RegisteredUserEvent].passwordHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
@@ -301,7 +301,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -321,7 +321,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -355,7 +355,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -376,7 +376,7 @@ class UserEntitySpec
             email = Random.alphanumeric.take(12).mkString,
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -401,7 +401,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -434,7 +434,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -461,7 +461,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -488,7 +488,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -517,7 +517,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -548,7 +548,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -578,7 +578,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -603,7 +603,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -628,7 +628,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 
@@ -653,7 +653,7 @@ class UserEntitySpec
             passwordHash = Random.alphanumeric.take(12).mkString)
           )
 
-          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationToken
+          val verificationToken = result1.eventOfType[UserEntity.RegisteredUserEvent].verificationTokenHash
 
           val result2 = eventSourcedTestKit.runCommand[UserEntity.Result](UserEntity.VerifyUserCommand(verificationToken))
 

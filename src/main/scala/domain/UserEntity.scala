@@ -6,7 +6,6 @@ import akka.persistence.typed.scaladsl.{Effect, EventSourcedBehavior, ReplyEffec
 import akka.serialization.jackson.CborSerializable
 
 import java.time.{Clock, LocalDateTime, ZoneOffset}
-import java.security.SecureRandom
 
 object UserEntity {
 
@@ -52,7 +51,7 @@ object UserEntity {
                                  email: String,
                                  passwordHash: String,
                                  createdAt: LocalDateTime,
-                                 verificationToken: String,
+                                 verificationTokenHash: String,
                                  tokenExpirationDate: LocalDateTime,
                                  loginAttempts: Int) extends Event
 
@@ -112,13 +111,16 @@ object UserEntity {
 
   case class UnsupportedDeleteCommand(reason: String) extends DeleteUserResult
 
-  case class EmptyState(override val id: String)
+  case class EmptyState(override val id: String,
+                        tokenGenerator: TokenGenerator)
                        (implicit clock: Clock) extends State {
 
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
           val timeNow = nowUtc
+          val token = tokenGenerator.generateToken()
+          val hashedToken = tokenGenerator.hashToken(token)
           Effect
             .persist(RegisteredUserEvent(
               id = id,
@@ -129,7 +131,7 @@ object UserEntity {
               email = registerUserCommand.email,
               createdAt = timeNow,
               tokenExpirationDate = timeNow.plusDays(1),
-              verificationToken = SecureRandom.getInstanceStrong.toString,
+              verificationTokenHash = hashedToken,
               loginAttempts = 0))
             .thenReply(registerUserCommand.replyTo)(_ => SuccessfulRegisterUserCommand)
 
@@ -157,9 +159,10 @@ object UserEntity {
             userId = registeredUserEvent.userId,
             passwordHash = registeredUserEvent.passwordHash,
             email = registeredUserEvent.email,
-            verificationToken = registeredUserEvent.verificationToken,
+            verificationTokenHash = registeredUserEvent.verificationTokenHash,
             tokenExpirationDate = registeredUserEvent.tokenExpirationDate,
-            createdAt = registeredUserEvent.createdAt)
+            createdAt = registeredUserEvent.createdAt,
+            tokenGenerator = tokenGenerator)
         case _: UserVerifiedEvent =>
           throw new IllegalStateException(s"Unexpected event ${classOf[UserVerifiedEvent].getSimpleName} in ${classOf[EmptyState].getSimpleName} state")
         case _: UserLoggedInEvent =>
@@ -181,9 +184,10 @@ object UserEntity {
                                       userId: String,
                                       email: String,
                                       createdAt: LocalDateTime,
-                                      verificationToken: String,
+                                      verificationTokenHash: String,
                                       tokenExpirationDate: LocalDateTime,
-                                      passwordHash: String)
+                                      passwordHash: String,
+                                      tokenGenerator: TokenGenerator)
                                      (implicit clock: Clock) extends State {
 
     override def applyCommand(command: Command): ReplyEffect[Event, State] =
@@ -192,7 +196,8 @@ object UserEntity {
           Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[PendingVerificationState].getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
           val timeNow = nowUtc
-          if (verifyUserCommand.verificationToken == verificationToken && timeNow.isBefore(tokenExpirationDate))
+          val matchResult = tokenGenerator.matches(verifyUserCommand.verificationToken, verificationTokenHash) && timeNow.isBefore(tokenExpirationDate)
+          if (matchResult)
             Effect
               .persist(UserVerifiedEvent(id, timeNow))
               .thenReply(verifyUserCommand.replyTo)(_ => SuccessfulVerifyUserCommand)
@@ -415,10 +420,11 @@ object UserEntity {
   }
 
   def apply(persistenceId: PersistenceId,
-            entityId: String)
+            entityId: String,
+            tokenGenerator: TokenGenerator)
            (implicit clock: Clock): Behavior[Command] = EventSourcedBehavior.withEnforcedReplies[Command, Event, State](
     persistenceId = persistenceId,
-    emptyState = EmptyState(entityId),
+    emptyState = EmptyState(entityId, tokenGenerator),
     eventHandler = (state, event) => state.applyEvent(event),
     commandHandler = (state, command) => state.applyCommand(command)
   )
