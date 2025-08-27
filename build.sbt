@@ -11,6 +11,7 @@ lazy val root = (project in file("."))
 
 val AkkaVersion = "2.10.4"
 val scalaTestVersion = "3.2.19"
+val scalaMockVersion = "7.4.1"
 
 
 resolvers += "Akka library repository".at("https://repo.akka.io/maven")
@@ -23,7 +24,8 @@ libraryDependencies ++= Seq(
 
   "com.typesafe.akka" %% "akka-persistence-testkit" % AkkaVersion % Test,
 
-  "org.scalatest" %% "scalatest" % scalaTestVersion % Test
+  "org.scalatest" %% "scalatest" % scalaTestVersion % Test,
+  "org.scalamock" %% "scalamock" % scalaMockVersion % Test
 
 
 )

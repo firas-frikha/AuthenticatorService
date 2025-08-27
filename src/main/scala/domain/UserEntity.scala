@@ -14,7 +14,7 @@ object UserEntity {
   sealed trait State extends CborSerializable {
     def id: String
 
-    def applyCommand(command: Command): ReplyEffect[Event, State]
+    def applyCommand(command: Command, clock: Clock, tokenGenerator: TokenGenerator): ReplyEffect[Event, State]
 
     def applyEvent(event: Event): State
   }
@@ -30,15 +30,15 @@ object UserEntity {
 
 
   case class VerifyUserCommand(verificationToken: String)
-                              (val replyTo: ActorRef[VerifyUserCommandResult]) extends Command
+                              (val replyTo: ActorRef[VerifyCommandResult]) extends Command
 
   case class LoginUserCommand(passwordHash: String)
-                             (val replyTo: ActorRef[LoginResult]) extends Command
+                             (val replyTo: ActorRef[LoginCommandResult]) extends Command
 
   case class UnlockUserCommand(newPasswordHash: String)
-                              (val replyTo: ActorRef[UnlockResult]) extends Command
+                              (val replyTo: ActorRef[UnlockCommandResult]) extends Command
 
-  case class DeleteUserCommand(replyTo: ActorRef[DeleteUserResult]) extends Command
+  case class DeleteUserCommand(replyTo: ActorRef[DeleteCommandResult]) extends Command
 
   sealed trait Event extends CborSerializable {
     def id: String
@@ -81,44 +81,42 @@ object UserEntity {
 
   case class UnsupportedRegisterUserCommand(reason: String) extends RegisterCommandResult
 
-  sealed trait VerifyUserCommandResult extends Result
+  sealed trait VerifyCommandResult extends Result
 
-  case object SuccessfulVerifyUserCommand extends VerifyUserCommandResult
+  case object SuccessfulVerifyCommand extends VerifyCommandResult
 
-  case class UnsupportedVerifyUserCommand(reason: String) extends VerifyUserCommandResult
+  case class UnsupportedVerifyCommand(reason: String) extends VerifyCommandResult
 
-  case object WrongOrExpiredVerificationToken extends VerifyUserCommandResult
+  case object WrongOrExpiredVerificationToken extends VerifyCommandResult
 
-  trait LoginResult extends Result
+  trait LoginCommandResult extends Result
 
-  case object SuccessfulLogin extends LoginResult
+  case object SuccessfulLoginCommand extends LoginCommandResult
 
-  case class UnsupportedLoginCommand(reason: String) extends LoginResult
+  case class UnsupportedLoginCommand(reason: String) extends LoginCommandResult
 
-  case object FailedLoginResult extends LoginResult
+  case object FailedLoginCommandResult extends LoginCommandResult
 
-  case object UserLocked extends LoginResult
+  case object UserLocked extends LoginCommandResult
 
-  trait UnlockResult extends Result
+  trait UnlockCommandResult extends Result
 
-  case object SuccessfulUnlockCommand extends UnlockResult
+  case object SuccessfulUnlockCommand extends UnlockCommandResult
 
-  case class UnsupportedUnlockCommand(reason: String) extends UnlockResult
+  case class UnsupportedUnlockCommand(reason: String) extends UnlockCommandResult
 
-  trait DeleteUserResult extends Result
+  trait DeleteCommandResult extends Result
 
-  case object SuccessfulDeleteCommand extends DeleteUserResult
+  case object SuccessfulDeleteCommand extends DeleteCommandResult
 
-  case class UnsupportedDeleteCommand(reason: String) extends DeleteUserResult
+  case class UnsupportedDeleteCommand(reason: String) extends DeleteCommandResult
 
-  case class EmptyState(override val id: String,
-                        tokenGenerator: TokenGenerator)
-                       (implicit clock: Clock) extends State {
+  case class EmptyState(override val id: String) extends State {
 
-    override def applyCommand(command: Command): ReplyEffect[Event, State] =
+    override def applyCommand(command: Command, clock: Clock, tokenGenerator: TokenGenerator): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
-          val timeNow = nowUtc
+          val timeNow = nowUtc(clock)
           val token = tokenGenerator.generateToken()
           val hashedToken = tokenGenerator.hashToken(token)
           Effect
@@ -137,7 +135,7 @@ object UserEntity {
 
         case verifyUserCommand: VerifyUserCommand =>
           Effect
-            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${classOf[VerifyUserCommand].getSimpleName}, user in ${classOf[EmptyState].getSimpleName} !"))
+            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyCommand(s"Cannot execute ${classOf[VerifyUserCommand].getSimpleName}, user in ${classOf[EmptyState].getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
           Effect
             .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${classOf[LoginUserCommand].getSimpleName}, user in ${classOf[EmptyState].getSimpleName} !"))
@@ -161,8 +159,7 @@ object UserEntity {
             email = registeredUserEvent.email,
             verificationTokenHash = registeredUserEvent.verificationTokenHash,
             tokenExpirationDate = registeredUserEvent.tokenExpirationDate,
-            createdAt = registeredUserEvent.createdAt,
-            tokenGenerator = tokenGenerator)
+            createdAt = registeredUserEvent.createdAt)
         case _: UserVerifiedEvent =>
           throw new IllegalStateException(s"Unexpected event ${classOf[UserVerifiedEvent].getSimpleName} in ${classOf[EmptyState].getSimpleName} state")
         case _: UserLoggedInEvent =>
@@ -186,21 +183,21 @@ object UserEntity {
                                       createdAt: LocalDateTime,
                                       verificationTokenHash: String,
                                       tokenExpirationDate: LocalDateTime,
-                                      passwordHash: String,
-                                      tokenGenerator: TokenGenerator)
-                                     (implicit clock: Clock) extends State {
+                                      passwordHash: String) extends State {
 
-    override def applyCommand(command: Command): ReplyEffect[Event, State] =
+    override def applyCommand(command: Command,
+                              clock: Clock,
+                              tokenGenerator: TokenGenerator): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
           Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[PendingVerificationState].getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
-          val timeNow = nowUtc
+          val timeNow = nowUtc(clock)
           val matchResult = tokenGenerator.matches(verifyUserCommand.verificationToken, verificationTokenHash) && timeNow.isBefore(tokenExpirationDate)
           if (matchResult)
             Effect
               .persist(UserVerifiedEvent(id, timeNow))
-              .thenReply(verifyUserCommand.replyTo)(_ => SuccessfulVerifyUserCommand)
+              .thenReply(verifyUserCommand.replyTo)(_ => SuccessfulVerifyCommand)
           else
             Effect
               .reply(verifyUserCommand.replyTo)(WrongOrExpiredVerificationToken)
@@ -251,23 +248,22 @@ object UserEntity {
                                  createdAt: LocalDateTime,
                                  passwordHash: String,
                                  verifiedAt: LocalDateTime,
-                                 loginAttempts: Int)
-                                (implicit clock: Clock) extends State {
+                                 loginAttempts: Int) extends State {
 
-    override def applyCommand(command: Command): ReplyEffect[Event, State] =
+    override def applyCommand(command: Command, clock: Clock, tokenGenerator: TokenGenerator): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
           Effect
             .reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[RegisteredUserState].getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
           Effect
-            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[RegisteredUserState].getSimpleName} !"))
+            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyCommand(s"Cannot execute ${classOf[VerifyUserCommand].getSimpleName}, user in ${classOf[RegisteredUserState].getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
-          val timeNow = nowUtc
+          val timeNow = nowUtc(clock)
           if (loginUserCommand.passwordHash == passwordHash)
             Effect
               .persist(UserLoggedInEvent(id = id, loggedInAt = timeNow))
-              .thenReply(loginUserCommand.replyTo)(_ => SuccessfulLogin)
+              .thenReply(loginUserCommand.replyTo)(_ => SuccessfulLoginCommand)
           else {
             if (loginAttempts + 1 >= MaximumNumberOfLoginAttempts)
               Effect
@@ -276,13 +272,13 @@ object UserEntity {
             else
               Effect
                 .persist(UserLoginFailureEvent(id = id, loginAt = timeNow))
-                .thenReply(loginUserCommand.replyTo)(_ => FailedLoginResult)
+                .thenReply(loginUserCommand.replyTo)(_ => FailedLoginCommandResult)
           }
         case unlockUserCommand: UnlockUserCommand =>
           Effect
             .reply(unlockUserCommand.replyTo)(UnsupportedUnlockCommand(s"Cannot execute ${classOf[UnlockUserCommand].getSimpleName}, user in ${classOf[RegisteredUserState].getSimpleName} !"))
         case deleteUserCommand: DeleteUserCommand =>
-          val timeNow = nowUtc
+          val timeNow = nowUtc(clock)
           Effect
             .persist(UserDeletedEvent(id = id, deletedAt = timeNow))
             .thenReply(deleteUserCommand.replyTo)(_ => SuccessfulDeleteCommand)
@@ -335,15 +331,14 @@ object UserEntity {
                              createdAt: LocalDateTime,
                              passwordHash: String,
                              verifiedAt: LocalDateTime,
-                             lockedAt: LocalDateTime)
-                            (implicit clock: Clock) extends State {
+                             lockedAt: LocalDateTime) extends State {
 
-    override def applyCommand(command: Command): ReplyEffect[Event, State] =
+    override def applyCommand(command: Command, clock: Clock, tokenGenerator: TokenGenerator): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
           Effect.reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[LockedUserState].getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
-          Effect.reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${classOf[VerifyUserCommand].getSimpleName}, user in ${classOf[LockedUserState].getSimpleName} !"))
+          Effect.reply(verifyUserCommand.replyTo)(UnsupportedVerifyCommand(s"Cannot execute ${classOf[VerifyUserCommand].getSimpleName}, user in ${classOf[LockedUserState].getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
           Effect.reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${classOf[LoginUserCommand].getSimpleName}, user in ${classOf[LockedUserState].getSimpleName} !"))
         case unlockUserCommand: UnlockUserCommand =>
@@ -394,14 +389,14 @@ object UserEntity {
                           verifiedAt: LocalDateTime,
                           deletedAt: LocalDateTime) extends State {
 
-    override def applyCommand(command: Command): ReplyEffect[Event, State] =
+    override def applyCommand(command: Command, clock: Clock, tokenGenerator: TokenGenerator): ReplyEffect[Event, State] =
       command match {
         case registerUserCommand: RegisterUserCommand =>
           Effect
             .reply(registerUserCommand.replyTo)(UnsupportedRegisterUserCommand(s"Cannot execute ${classOf[RegisterUserCommand].getSimpleName}, user in ${classOf[DeletedState].getSimpleName} !"))
         case verifyUserCommand: VerifyUserCommand =>
           Effect
-            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyUserCommand(s"Cannot execute ${classOf[VerifyUserCommand].getSimpleName}, user in ${classOf[DeletedState].getSimpleName} !"))
+            .reply(verifyUserCommand.replyTo)(UnsupportedVerifyCommand(s"Cannot execute ${classOf[VerifyUserCommand].getSimpleName}, user in ${classOf[DeletedState].getSimpleName} !"))
         case loginUserCommand: LoginUserCommand =>
           Effect
             .reply(loginUserCommand.replyTo)(UnsupportedLoginCommand(s"Cannot execute ${classOf[LoginUserCommand].getSimpleName}, user in ${classOf[DeletedState].getSimpleName} !"))
@@ -421,15 +416,15 @@ object UserEntity {
 
   def apply(persistenceId: PersistenceId,
             entityId: String,
-            tokenGenerator: TokenGenerator)
-           (implicit clock: Clock): Behavior[Command] = EventSourcedBehavior.withEnforcedReplies[Command, Event, State](
+            clock: Clock,
+            tokenGenerator: TokenGenerator): Behavior[Command] = EventSourcedBehavior.withEnforcedReplies[Command, Event, State](
     persistenceId = persistenceId,
-    emptyState = EmptyState(entityId, tokenGenerator),
+    emptyState = EmptyState(entityId),
     eventHandler = (state, event) => state.applyEvent(event),
-    commandHandler = (state, command) => state.applyCommand(command)
+    commandHandler = (state, command) => state.applyCommand(command, clock, tokenGenerator)
   )
 
 
-  private def nowUtc(implicit clock: Clock): LocalDateTime =
+  private def nowUtc(clock: Clock): LocalDateTime =
     LocalDateTime.ofInstant(clock.instant(), ZoneOffset.UTC)
 }
