@@ -55,6 +55,10 @@ object UserEntity {
                                  tokenExpirationDate: LocalDateTime,
                                  loginAttempts: Int) extends Event
 
+  case class VerificationEmailRequested(id: String,
+                                        email: String,
+                                        token: String) extends Event
+
   case class UserVerifiedEvent(id: String,
                                verifiedAt: LocalDateTime) extends Event
 
@@ -120,17 +124,24 @@ object UserEntity {
           val token = tokenGenerator.generateToken()
           val hashedToken = tokenGenerator.hashToken(token)
           Effect
-            .persist(RegisteredUserEvent(
-              id = id,
-              firstName = registerUserCommand.firstName,
-              lastName = registerUserCommand.lastName,
-              userId = registerUserCommand.userId,
-              passwordHash = registerUserCommand.passwordHash,
-              email = registerUserCommand.email,
-              createdAt = timeNow,
-              tokenExpirationDate = timeNow.plusDays(1),
-              verificationTokenHash = hashedToken,
-              loginAttempts = 0))
+            .persist(
+              RegisteredUserEvent(
+                id = id,
+                firstName = registerUserCommand.firstName,
+                lastName = registerUserCommand.lastName,
+                userId = registerUserCommand.userId,
+                passwordHash = registerUserCommand.passwordHash,
+                email = registerUserCommand.email,
+                createdAt = timeNow,
+                tokenExpirationDate = timeNow.plusDays(1),
+                verificationTokenHash = hashedToken,
+                loginAttempts = 0),
+              VerificationEmailRequested(
+                id = id,
+                email = registerUserCommand.email,
+                token = token
+              )
+            )
             .thenReply(registerUserCommand.replyTo)(_ => SuccessfulRegisterUserCommand)
 
         case verifyUserCommand: VerifyUserCommand =>
@@ -172,6 +183,7 @@ object UserEntity {
           throw new IllegalStateException(s"Unexpected event ${classOf[UserLoginFailureEvent].getSimpleName} in ${classOf[EmptyState].getSimpleName}} state")
         case _: UserDeletedEvent =>
           throw new IllegalStateException(s"Unexpected event ${classOf[UserDeletedEvent].getSimpleName} in ${classOf[EmptyState].getSimpleName}} state")
+        case _: VerificationEmailRequested => this
       }
   }
 
@@ -237,6 +249,7 @@ object UserEntity {
           throw new IllegalStateException(s"Unexpected event ${classOf[UserLockedEvent].getSimpleName} in ${classOf[PendingVerificationState].getSimpleName} state")
         case _: UserDeletedEvent =>
           throw new IllegalStateException(s"Unexpected event ${classOf[UserDeletedEvent].getSimpleName} in ${classOf[PendingVerificationState].getSimpleName} state")
+        case _: VerificationEmailRequested => this
       }
   }
 
@@ -296,7 +309,7 @@ object UserEntity {
           copy(loginAttempts = 0)
         case _: UserUnlockedEvent =>
           throw new IllegalStateException(s"Unexpected event ${classOf[UserUnlockedEvent].getSimpleName} in ${classOf[RegisteredUserState].getSimpleName} state")
-
+        case _: VerificationEmailRequested => this
         case userLockedEvent: UserLockedEvent =>
           LockedUserState(id = id,
             firstName = firstName,
@@ -376,6 +389,7 @@ object UserEntity {
           throw new IllegalStateException(s"Unexpected event ${classOf[UserLockedEvent].getSimpleName} in ${classOf[LockedUserState].getSimpleName} state")
         case _: UserDeletedEvent =>
           throw new IllegalStateException(s"Unexpected event ${classOf[UserDeletedEvent].getSimpleName} in ${classOf[LockedUserState].getSimpleName} state")
+        case _: VerificationEmailRequested => this
       }
   }
 
@@ -410,6 +424,7 @@ object UserEntity {
 
     override def applyEvent(event: Event): State =
       event match {
+        case _: VerificationEmailRequested => this
         case event => throw new IllegalStateException(s"Unexpected event ${event.getClass.getSimpleName} in ${classOf[DeletedState].getSimpleName} state")
       }
   }
